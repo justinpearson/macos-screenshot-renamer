@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.justin.macos-screenshot-renamer</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/justin/Utilities/macos-screenshot-renamer/watch-and-rename-screenshots.py</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>/Users/justin/Utilities/macos-screenshot-renamer/logs/stderr.log</string>
+    <key>StandardOutPath</key>
+    <string>/Users/justin/Utilities/macos-screenshot-renamer/logs/stdout.log</string>
+</dict>
+</plist>
