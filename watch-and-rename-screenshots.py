@@ -48,12 +48,45 @@ def log(message: str) -> None:
     print(f"{timestamp} {message}", flush=True)
 
 
-def notify(message: str) -> None:
+def notify(message: str, title: str = "Screenshot renamed") -> None:
     """Send a macOS notification."""
+    safe_msg = message.replace("\\", "\\\\").replace('"', '\\"')
+    safe_title = title.replace("\\", "\\\\").replace('"', '\\"')
     subprocess.run([
         "osascript", "-e",
-        f'display notification "{message}" with title "Screenshot renamed"'
+        f'display notification "{safe_msg}" with title "{safe_title}"'
     ], capture_output=True)
+
+
+def check_screencapture_location() -> None:
+    """Warn loudly if macOS isn't configured to save screenshots into RAW_DIR.
+
+    A macOS update can silently reset `defaults write com.apple.screencapture
+    location`. When that happens, screenshots go straight to ~/Desktop, fswatch
+    sees nothing, and the user gets the old non-breaking-space filenames again
+    with no obvious indication the renamer is broken.
+    """
+    result = subprocess.run(
+        ["defaults", "read", "com.apple.screencapture", "location"],
+        capture_output=True, text=True
+    )
+    actual_str = result.stdout.strip() if result.returncode == 0 else ""
+
+    expected = RAW_DIR.resolve()
+    actual = Path(actual_str).expanduser().resolve() if actual_str else None
+
+    if actual == expected:
+        log(f"OK: screencapture location = {actual_str}")
+        return
+
+    seen = actual_str if actual_str else "(unset, defaults to ~/Desktop)"
+    problem = f"Default screenshot location is {seen}, not {RAW_DIR}"
+    log(f"WARNING: {problem}")
+    log("Screenshots will NOT be renamed. Fix with: defaults write com.apple.screencapture location " + str(RAW_DIR) + " && killall SystemUIServer")
+    notify(
+        f"{problem}. See ~/Utilities/macos-screenshot-renamer/",
+        title="Screenshot renamer broken",
+    )
 
 
 def wait_for_file_closed(filepath: Path, max_attempts: int = 50) -> bool:
@@ -138,6 +171,7 @@ def main() -> None:
     log("Starting screenshot watcher")
     log(f"Watching: {RAW_DIR}")
     log(f"Destination: {DEST_DIR}")
+    check_screencapture_location()
 
     # Start fswatch with:
     #   -0: null-terminated output (handles filenames with spaces/newlines)

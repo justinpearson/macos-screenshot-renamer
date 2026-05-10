@@ -26,6 +26,7 @@ For observability, the script also fires a MacOS notification when it renames a 
   - [Setup Python script](#setup-python-script)
   - [Auto-run it with launchctl](#auto-run-it-with-launchctl)
 - [Reference - launchd commands](#reference---launchd-commands)
+- [Troubleshooting](#troubleshooting)
 - [Uninstall](#uninstall)
 
 ## Quick Start
@@ -283,6 +284,47 @@ launchctl load ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
 
 # View the plist
 cat ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
+```
+
+## Troubleshooting
+
+### "I take a screenshot and it lands on Desktop with the old `<0x202f>` filename"
+
+macOS updates have been observed to silently reset the `com.apple.screencapture location` preference. When that happens, screenshots go straight to `~/Desktop` (with the bad filenames), `fswatch` sees nothing in `raw-screenshots/`, and the renamer appears to do nothing.
+
+Check the current value:
+
+```zsh
+defaults read com.apple.screencapture location
+```
+
+If it prints `~/Desktop`, an unrelated path, or `does not exist`, restore it and bounce the menu-bar process:
+
+```zsh
+defaults write com.apple.screencapture location ~/Utilities/macos-screenshot-renamer/raw-screenshots
+killall SystemUIServer
+```
+
+To make this failure mode self-announcing, the script runs a startup self-check that compares `defaults read com.apple.screencapture location` against the configured `RAW_DIR`. On mismatch, it logs a `WARNING` line and posts a macOS notification:
+
+> **Screenshot renamer broken**
+> Default screenshot location is /Users/justin/Desktop, not /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots. See ~/Utilities/macos-screenshot-renamer/
+
+The launchd job re-runs the script on system boot, so a post-update reboot is the natural moment for the check to fire. If you want to trigger the check manually, restart the job:
+
+```zsh
+launchctl unload ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
+launchctl load ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
+tail -n 5 ~/Utilities/macos-screenshot-renamer/logs/stdout.log
+```
+
+A healthy startup looks like:
+
+```
+2026-05-10 06:14:01 Starting screenshot watcher
+2026-05-10 06:14:01 Watching: /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+2026-05-10 06:14:01 Destination: /Users/justin/Desktop
+2026-05-10 06:14:01 OK: screencapture location = /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
 ```
 
 ## Uninstall

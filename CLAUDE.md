@@ -7,9 +7,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a macOS utility that automatically renames screenshots from macOS's default format (which contains a problematic unicode narrow no-break space U+202F before AM/PM) to a simpler format: `screenshot-yyyy-mm-dd--hh-mm-ss.png`.
 
 The system has three parts:
-1. macOS is configured to save screenshots to `raw-screenshots/` instead of Desktop
+1. macOS is configured to save screenshots to `raw-screenshots/` instead of Desktop, via `defaults write com.apple.screencapture location ...`
 2. A Python script (`watch-and-rename-screenshots.py`) uses `fswatch` to monitor that directory
 3. A launchd job (`com.justin.macos-screenshot-renamer.plist`) keeps the Python script running
+
+## Known Failure Mode
+
+macOS updates have been observed to silently reset `com.apple.screencapture location` back to its default. When this happens, screenshots go straight to `~/Desktop` (with the U+202F filenames), `fswatch` sees nothing in `raw-screenshots/`, and the user gets no obvious indication the renamer is broken.
+
+To detect this, the script runs a startup self-check (`check_screencapture_location()`) that compares the current `defaults` value against `RAW_DIR`. On mismatch it logs a WARNING and posts a macOS notification titled "Screenshot renamer broken". The launchd job restarts the script on system boot, so the post-update reboot is a natural moment for this check to fire.
+
+To fix the `defaults` reset:
+```zsh
+defaults write com.apple.screencapture location /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+killall SystemUIServer
+```
 
 ## Architecture Notes
 
