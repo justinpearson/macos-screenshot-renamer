@@ -6,7 +6,7 @@ This lightweight python program uses `fswatch` and `launchctl` to run in the bac
 Screenshot 2026-01-13 at 6.25.09<0x202f>AM.png
 ```
 
-(note the weird unicode character `<0x202f>`), to a more sensible format:
+(note the weird unicode character `<0x202f>`), to a more sensible format that uses 24-hour time, zero-padding, and no whitespace:
 
 ```
 screenshot-2026-01-13--06-25-09.png
