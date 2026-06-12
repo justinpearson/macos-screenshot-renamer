@@ -9,6 +9,7 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPT = Path(__file__).parent / "watch-and-rename-screenshots.py"
 
@@ -103,6 +104,51 @@ class MoveScreenshotTest(unittest.TestCase):
         )
         self.assertEqual((self.dest_dir / f"screenshot-{TS}--1.png").read_bytes(), b"one")
         self.assertEqual((self.dest_dir / f"screenshot-{TS}--2.png").read_bytes(), b"two")
+
+
+class ParseFswatchLineTest(unittest.TestCase):
+    # fswatch is invoked with --event-flag-separator=| so the flags form one
+    # space-free token after the path.
+
+    def test_simple_path(self):
+        self.assertEqual(
+            renamer.parse_fswatch_line("/raw/Screenshot 1.png IsFile|Renamed"),
+            ("/raw/Screenshot 1.png", "IsFile|Renamed"),
+        )
+
+    def test_path_containing_png_space_mid_name(self):
+        self.assertEqual(
+            renamer.parse_fswatch_line("/raw/weird.png name.png IsFile"),
+            ("/raw/weird.png name.png", "IsFile"),
+        )
+
+    def test_non_png_returns_none(self):
+        self.assertIsNone(renamer.parse_fswatch_line("/raw/.DS_Store IsFile|Updated"))
+
+    def test_temp_screenshot_file_returns_none(self):
+        self.assertIsNone(
+            renamer.parse_fswatch_line("/raw/..Screenshot 1.png-oQAC IsFile|Created")
+        )
+
+    def test_line_without_space_returns_none(self):
+        self.assertIsNone(renamer.parse_fswatch_line("garbage"))
+
+
+class CheckFswatchInstalledTest(unittest.TestCase):
+    def test_missing_fswatch_notifies_sleeps_and_exits(self):
+        with mock.patch.object(renamer, "FSWATCH_PATH", "/nonexistent/fswatch"), \
+             mock.patch.object(renamer, "notify") as notify, \
+             mock.patch.object(renamer.time, "sleep") as sleep:
+            with self.assertRaises(SystemExit):
+                renamer.check_fswatch_installed()
+            notify.assert_called_once()
+            sleep.assert_called_once_with(3600)
+
+    def test_present_fswatch_is_quiet(self):
+        with mock.patch.object(renamer, "FSWATCH_PATH", "/bin/ls"), \
+             mock.patch.object(renamer, "notify") as notify:
+            renamer.check_fswatch_installed()
+            notify.assert_not_called()
 
 
 if __name__ == "__main__":

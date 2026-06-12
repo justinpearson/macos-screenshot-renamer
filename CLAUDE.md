@@ -23,6 +23,8 @@ defaults write com.apple.screencapture location /Users/justin/Utilities/macos-sc
 killall SystemUIServer
 ```
 
+A second failure mode: if the `fswatch` binary disappears (e.g. removed by a Homebrew upgrade), the script would crash-loop under launchd with no signal. A startup check (`check_fswatch_installed()`) logs, notifies, sleeps an hour, and exits—so the user gets at most one notification per hour and the job recovers on its own once fswatch is reinstalled.
+
 ## Architecture Notes
 
 The Python script handles several macOS quirks:

@@ -97,6 +97,23 @@ def check_screencapture_location() -> None:
     )
 
 
+def check_fswatch_installed() -> None:
+    """Exit loudly if fswatch is missing (e.g. removed by a Homebrew upgrade).
+
+    Without this, Popen raises FileNotFoundError and launchd respawns the
+    script in a fast crash-loop with no user-visible signal. Sleeping before
+    exit limits the respawn cycle to one notification per hour, and lets the
+    job recover automatically once fswatch is reinstalled.
+    """
+    if Path(FSWATCH_PATH).exists():
+        return
+    problem = f"fswatch not found at {FSWATCH_PATH}. Install with: brew install fswatch"
+    log(f"ERROR: {problem}")
+    notify(problem, title="Screenshot renamer broken")
+    time.sleep(3600)
+    sys.exit(1)
+
+
 def wait_for_file_closed(filepath: Path, max_attempts: int = 50) -> bool:
     """
     Wait until no process has the file open.
@@ -196,20 +213,18 @@ def move_screenshot(path: Path, timestamp: str) -> Path:
 
 def parse_fswatch_line(line: str) -> Optional[Tuple[str, str]]:
     """
-    Parse fswatch -x output into (filepath, events).
+    Parse fswatch output into (filepath, events).
 
-    Format: "/path/to/file.png Flag1 Flag2 Flag3"
+    fswatch is invoked with --event-flag-separator=| so the event flags form
+    a single space-free token: "/path/to/file.png Flag1|Flag2|Flag3". The
+    last space in the line therefore separates the path (which may itself
+    contain spaces) from the flags.
 
     Returns None if not a .png file.
     """
-    # Find where .png ends and flags begin
-    match = re.search(r"\.png ", line)
-    if not match:
+    filepath, sep, events = line.rpartition(" ")
+    if not sep or not filepath.endswith(".png"):
         return None
-
-    split_pos = match.end() - 1  # Position of space after .png
-    filepath = line[:split_pos]
-    events = line[split_pos + 1:]
 
     return filepath, events
 
@@ -249,15 +264,20 @@ def main() -> None:
     log("Starting screenshot watcher")
     log(f"Watching: {RAW_DIR}")
     log(f"Destination: {DEST_DIR}")
+    check_fswatch_installed()
     check_screencapture_location()
 
     # Start fswatch with:
     #   -0: null-terminated output (handles filenames with spaces/newlines)
     #   -x: include event flags (so we can log what's happening)
+    #   --event-flag-separator=|: flags form one space-free token, so the last
+    #     space in each record unambiguously separates path from flags
+    # stderr is inherited (not piped) so it reaches launchd's stderr.log; a
+    # full unread pipe buffer would block fswatch and silently stall events.
     process = subprocess.Popen(
-        [FSWATCH_PATH, "-0", "-x", str(RAW_DIR)],
+        [FSWATCH_PATH, "-0", "-x", "--event-flag-separator=|", str(RAW_DIR)],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=None,
     )
 
     # Read null-terminated lines from fswatch
