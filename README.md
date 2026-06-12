@@ -12,6 +12,13 @@ Screenshot 2026-01-13 at 6.25.09<0x202f>AM.png
 screenshot-2026-01-13--06-25-09.png
 ```
 
+With multiple monitors, Cmd-Shift-3 saves one screenshot per display, all with the same timestamp. The renamer never overwrites files: same-timestamp screenshots get numbered suffixes instead.
+
+```
+screenshot-2026-01-13--06-25-09--1.png
+screenshot-2026-01-13--06-25-09--2.png
+```
+
 For observability, the script also fires a MacOS notification when it renames a screenshot:
 
 ![screenshot-macos-notification](docs/screenshot-macos-notification.png)
