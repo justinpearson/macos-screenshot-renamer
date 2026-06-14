@@ -23,19 +23,32 @@ defaults write com.apple.screencapture location /Users/justin/Utilities/macos-sc
 killall SystemUIServer
 ```
 
+A second failure mode: if the `fswatch` binary disappears (e.g. removed by a Homebrew upgrade), the script would crash-loop under launchd with no signal. A startup check (`check_fswatch_installed()`) logs, notifies, sleeps an hour, and exits—so the user gets at most one notification per hour and the job recovers on its own once fswatch is reinstalled.
+
 ## Architecture Notes
 
 The Python script handles several macOS quirks:
 - macOS writes screenshots in three stages (temp file → hidden file → final file), so the script filters by filename pattern to only process the final file
 - The script uses `lsof` to wait until no process has the file open before moving it
 - `fswatch` fires multiple events per file; after moving, subsequent events are ignored via the file-exists check
-- launchd jobs cannot READ from ~/Desktop without Full Disk Access, but CAN write to it—hence the two-directory approach
+- launchd jobs cannot READ from ~/Desktop without Full Disk Access, but CAN write to it—hence the two-directory approach. More precisely (verified experimentally 2026-06): TCC blocks listing ~/Desktop, reading its files, and hard-linking into it, but allows stat, rename-into, rename-within, and unlink of specific paths.
+- Cmd-Shift-3 with multiple monitors saves one screenshot per display, all sharing one second-granularity timestamp. The script never overwrites: moves check the destination first (`safe_move`), and same-timestamp screenshots get `--1`, `--2`, ... suffixes (the first file of a burst is retroactively renamed from the plain name to `--1`).
 
 ## Commands
+
+Run the tests:
+```zsh
+python3 -m unittest test_watch_and_rename_screenshots -v
+```
 
 Run the watcher manually (stop launchd job first):
 ```zsh
 ./watch-and-rename-screenshots.py
+```
+
+Restart the launchd job (needed to pick up script changes):
+```zsh
+launchctl kickstart -k gui/$(id -u)/com.justin.macos-screenshot-renamer
 ```
 
 Manage the launchd job:

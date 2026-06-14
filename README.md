@@ -12,6 +12,13 @@ Screenshot 2026-01-13 at 6.25.09<0x202f>AM.png
 screenshot-2026-01-13--06-25-09.png
 ```
 
+With multiple monitors, Cmd-Shift-3 saves one screenshot per display, all with the same timestamp. The renamer never overwrites files: same-timestamp screenshots get numbered suffixes instead.
+
+```
+screenshot-2026-01-13--06-25-09--1.png
+screenshot-2026-01-13--06-25-09--2.png
+```
+
 For observability, the script also fires a MacOS notification when it renames a screenshot:
 
 ![screenshot-macos-notification](docs/screenshot-macos-notification.png)
@@ -81,11 +88,11 @@ Should see a MacOS notification and the renamed screenshot:
 
 ```
 ==> stdout.log <==
-2026-01-16 06:11:26 Event: IsFile Renamed AttributeModified | File: .Screenshot 2026-01-16 at 6.11.27 AM.png
-2026-01-16 06:11:26 Event: IsFile Renamed AttributeModified | File: Screenshot 2026-01-16 at 6.11.27 AM.png
+2026-01-16 06:11:26 Event: IsFile|Renamed|AttributeModified | File: .Screenshot 2026-01-16 at 6.11.27 AM.png
+2026-01-16 06:11:26 Event: IsFile|Renamed|AttributeModified | File: Screenshot 2026-01-16 at 6.11.27 AM.png
 2026-01-16 06:11:26 Processing: Screenshot 2026-01-16 at 6.11.27 AM.png
 2026-01-16 06:11:26 Renamed: screenshot-2026-01-16--06-11-27.png
-2026-01-16 06:11:27 Event: IsFile Renamed AttributeModified | File: Screenshot 2026-01-16 at 6.11.27 AM.png
+2026-01-16 06:11:27 Event: IsFile|Renamed|AttributeModified | File: Screenshot 2026-01-16 at 6.11.27 AM.png
 ```
 
 Done!
@@ -198,11 +205,11 @@ cd ~/Utilities/macos-screenshot-renamer/
 Take a screenshot with Cmd-Shift-3, should see:
 
 ```
-2026-01-18 08:22:36 Event: IsFile Renamed AttributeModified | File: .Screenshot 2026-01-18 at 8.22.35 AM.png
-2026-01-18 08:22:36 Event: IsFile Renamed AttributeModified | File: Screenshot 2026-01-18 at 8.22.35 AM.png
+2026-01-18 08:22:36 Event: IsFile|Renamed|AttributeModified | File: .Screenshot 2026-01-18 at 8.22.35 AM.png
+2026-01-18 08:22:36 Event: IsFile|Renamed|AttributeModified | File: Screenshot 2026-01-18 at 8.22.35 AM.png
 2026-01-18 08:22:36 Processing: Screenshot 2026-01-18 at 8.22.35 AM.png
 2026-01-18 08:22:36 Renamed: screenshot-2026-01-18--08-22-35.png
-2026-01-18 08:22:37 Event: IsFile Renamed AttributeModified | File: Screenshot 2026-01-18 at 8.22.35 AM.png
+2026-01-18 08:22:37 Event: IsFile|Renamed|AttributeModified | File: Screenshot 2026-01-18 at 8.22.35 AM.png
 ```
 
 Ctrl-c to quit.
