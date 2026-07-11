@@ -33,6 +33,7 @@ For observability, the script also fires a MacOS notification when it renames a 
   - [Setup Python script](#setup-python-script)
   - [Auto-run it with launchctl](#auto-run-it-with-launchctl)
 - [Reference - launchd commands](#reference---launchd-commands)
+- [Applying updates](#applying-updates)
 - [Troubleshooting](#troubleshooting)
 - [Uninstall](#uninstall)
 
@@ -293,6 +294,22 @@ launchctl load ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
 cat ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
 ```
 
+## Applying updates
+
+The launchd job runs `watch-and-rename-screenshots.py` as one long-lived process, so code changes on disk — e.g. from a `git pull` — don't take effect until the job restarts:
+
+```zsh
+launchctl kickstart -k gui/$(id -u)/com.justin.macos-screenshot-renamer
+```
+
+Then confirm the fresh process started cleanly:
+
+```zsh
+tail -n 4 logs/stdout.log
+```
+
+Expect a new `Starting screenshot watcher` line followed by the `OK: screencapture target=file, location = ...` self-check line.
+
 ## Troubleshooting
 
 ### "I take a screenshot and it lands on Desktop with the old `<0x202f>` filename"
@@ -314,8 +331,7 @@ killall SystemUIServer
 
 To make this failure mode self-announcing, the script checks two `com.apple.screencapture` defaults — `location` must be the configured `RAW_DIR`, and `target` must be `file` (or unset) — both at startup and every 5 minutes thereafter (in a background thread). On mismatch, it logs a `WARNING` line and posts a macOS notification (once per breakage, not every 5 minutes):
 
-> **Screenshot renamer broken**
-> Default screenshot location is /Users/justin/Desktop, not /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots. See ~/Utilities/macos-screenshot-renamer/
+![Screenshot renamer broken notification](docs/bad-loc-notification.png)
 
 If you want to trigger the startup check manually, restart the job:
 
