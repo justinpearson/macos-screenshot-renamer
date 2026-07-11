@@ -1,0 +1,101 @@
+!130 2026-07-11 5:24:52 ~  % defaults read com.apple.screencapture location 
+2026-07-11 05:25:01.642 defaults[86916:3868356] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:25:01 ~  % defaults write com.apple.screencapture location /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots            
+√ 2026-07-11 5:25:11 ~  % defaults read com.apple.screencapture location                                                                  
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:25:12 ~  % killall SystemUIServer                        
+√ 2026-07-11 5:25:23 ~  % defaults read com.apple.screencapture location 
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:25:26 ~  % ls -lstr ~/Desktop | tail -n 1
+  1408 -rw-r--r--@   1 justin  staff     717946 Jul 11 05:12 Screenshot 2026-07-11 at 5.12.58 AM.png
+√ 2026-07-11 5:25:48 ~  % # cmd-shift-3, see macos notification about screenshot renaming
+√ 2026-07-11 5:26:05 ~  % ls -lstr ~/Desktop | tail -n 1                                 
+  4048 -rw-r--r--@   1 justin  staff    2072278 Jul 11 05:25 screenshot-2026-07-11--05-25-50.png
+√ 2026-07-11 5:26:07 ~  % # ok, screenshot renamer is working.
+√ 2026-07-11 5:26:17 ~  % # now, will quicktime break it, if I set "Options" > "Save To" > "Desktop" ? 
+√ 2026-07-11 5:26:41 ~  % defaults read com.apple.screencapture location                              
+2026-07-11 05:27:10.986 defaults[87026:3870560] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:27:11 ~  % # i didn't even make a recording, I just selected File > "new screen recording" !
+!1 2026-07-11 5:28:05 ~  % defaults read com.apple.screencapture location                                   
+2026-07-11 05:28:21.216 defaults[87051:3871620] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:28:21 ~  % defaults read com.apple.screencapture location 
+2026-07-11 05:28:25.352 defaults[87058:3871801] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:28:25 ~  % defaults write com.apple.screencapture location /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:28:35 ~  % defaults read com.apple.screencapture location                                                                  
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:28:37 ~  % # start quicktime
+√ 2026-07-11 5:28:44 ~  % defaults read com.apple.screencapture location 
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:28:51 ~  % # File > "New Screen Recording" > ESC out of "camera" menu
+√ 2026-07-11 5:29:27 ~  % defaults read com.apple.screencapture location            
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:29:29 ~  % # File > "New Screen Recording" > click "Options" > don't change anything > ESC out of "camera" menu
+√ 2026-07-11 5:30:08 ~  % defaults read com.apple.screencapture location                                                      
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:30:21 ~  % # File > "New Screen Recording" > click "Options" > "Save To" > "Desktop" (was "Quicktime") 
+√ 2026-07-11 5:31:07 ~  % # File > "New Screen Recording" > click "Options" > "Save To" > "Desktop" (was "Quicktime") > ESC
+√ 2026-07-11 5:31:16 ~  % defaults read com.apple.screencapture location                                                   
+2026-07-11 05:31:27.962 defaults[87180:3875026] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:31:27 ~  % # File > "New Screen Recording" > click "Options" > "Save To" > "Quicktime" > ESC 
+!1 2026-07-11 5:31:37 ~  % defaults read com.apple.screencapture location                                   
+2026-07-11 05:31:51.447 defaults[87196:3875363] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:31:51 ~  % # File > "New Screen Recording" > click "Options" > "Save To" > "Documents" > ESC
+!1 2026-07-11 5:32:07 ~  % defaults read com.apple.screencapture location                                   
+~/Documents/
+√ 2026-07-11 5:32:16 ~  % # File > "New Screen Recording" > click "Options" > "Save To" > "Quicktime" > ESC
+√ 2026-07-11 5:32:30 ~  % defaults read com.apple.screencapture location                                   
+2026-07-11 05:32:41.163 defaults[87236:3876338] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:32:41 ~  % # File > "New Screen Recording" > click "Options" > "Save To" > "Other Location" > "~/Desktop/foo/" > ESC
+!1 2026-07-11 5:33:12 ~  % defaults read com.apple.screencapture location                                                           
+~/Desktop/foo
+√ 2026-07-11 5:33:30 ~  % # quick quicktime, does it reset the setting?
+√ 2026-07-11 5:33:56 ~  % defaults read com.apple.screencapture location 
+~/Desktop/foo
+√ 2026-07-11 5:34:02 ~  % # so it seems like this funny little quicktime menu actually permanently saves the setting of where screenshots (cmd-shift-3) get saved??
+√ 2026-07-11 5:35:40 ~  % # File > "New Screen Recording" > click "Options" > "Save To" > "Quicktime" > ESC
+√ 2026-07-11 5:36:06 ~  % # actually "Quicktime" was already selected when i restarted QT             
+√ 2026-07-11 5:36:43 ~  % defaults read com.apple.screencapture location
+2026-07-11 05:36:45.619 defaults[87345:3879545] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:36:45 ~  % # so, just opening the "Options" menu wipes out the screenshot location setting?
+!1 2026-07-11 5:37:19 ~  % # test:
+!1 2026-07-11 5:37:26 ~  % defaults write com.apple.screencapture location /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:37:29 ~  % defaults read com.apple.screencapture location                                                                  
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:37:31 ~  % # QT > open "Options" menu > see "Save To: QuickTime" is selected > don't change anything > ESC out of Options menu & camera menu
+√ 2026-07-11 5:38:11 ~  % defaults read com.apple.screencapture location
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:38:21 ~  % # hm, i expected that to wipe out the setting, but it didn't.
+√ 2026-07-11 5:38:53 ~  %                             
+√ 2026-07-11 5:48:46 ~  % 
+√ 2026-07-11 5:48:46 ~  % 
+√ 2026-07-11 5:48:46 ~  % # PLAN: click "Save To > Documents," ESC, restore your raw-screenshots path with defaults write, then without quitting QuickTime open File > New Screen Recording and read the key.
+√ 2026-07-11 5:49:10 ~  % defaults read com.apple.screencapture location
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:49:18 ~  % # click "Save To > Documents," ESC
+√ 2026-07-11 5:49:28 ~  % defaults read com.apple.screencapture location 
+~/Documents/
+√ 2026-07-11 5:49:38 ~  % defaults write com.apple.screencapture location /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:49:44 ~  % defaults read com.apple.screencapture location                                                                  
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:49:47 ~  % # QT > File > New Screen Recording > ESC       
+√ 2026-07-11 5:50:09 ~  % defaults read com.apple.screencapture location 
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:50:10 ~  % defaults read com.apple.screencapture location 
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:50:26 ~  % # QT > File > New Screen Recording > Options > saw that QuickTime Player was selected > ESC
+√ 2026-07-11 5:50:54 ~  % defaults read com.apple.screencapture location                                             
+/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+√ 2026-07-11 5:50:56 ~  % # QT > File > New Screen Recording > Options > saw that QuickTime Player was selected > clicked QuickTime Player > ESC
+√ 2026-07-11 5:51:11 ~  % defaults read com.apple.screencapture location                                                                        
+2026-07-11 05:51:19.307 defaults[87849:3892061] 
+The domain/default pair of (com.apple.screencapture, location) does not exist
+!1 2026-07-11 5:51:19 ~  % # wild. so clicking an already-selected option secretly changes the screencapture location??
+!1 2026-07-11 5:51:45 ~  % 

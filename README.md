@@ -297,7 +297,7 @@ cat ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
 
 ### "I take a screenshot and it lands on Desktop with the old `<0x202f>` filename"
 
-macOS updates have been observed to silently reset the `com.apple.screencapture location` preference. When that happens, screenshots go straight to `~/Desktop` (with the bad filenames), `fswatch` sees nothing in `raw-screenshots/`, and the renamer appears to do nothing.
+The `com.apple.screencapture location` preference gets silently reset. Two known causes: macOS updates, and QuickTime (see the warning below). When that happens, screenshots go straight to `~/Desktop` (with the bad filenames), `fswatch` sees nothing in `raw-screenshots/`, and the renamer appears to do nothing.
 
 Check the current value:
 
@@ -312,12 +312,12 @@ defaults write com.apple.screencapture location ~/Utilities/macos-screenshot-ren
 killall SystemUIServer
 ```
 
-To make this failure mode self-announcing, the script runs a startup self-check that compares `defaults read com.apple.screencapture location` against the configured `RAW_DIR`. On mismatch, it logs a `WARNING` line and posts a macOS notification:
+To make this failure mode self-announcing, the script checks two `com.apple.screencapture` defaults — `location` must be the configured `RAW_DIR`, and `target` must be `file` (or unset) — both at startup and every 5 minutes thereafter (in a background thread). On mismatch, it logs a `WARNING` line and posts a macOS notification (once per breakage, not every 5 minutes):
 
 > **Screenshot renamer broken**
 > Default screenshot location is /Users/justin/Desktop, not /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots. See ~/Utilities/macos-screenshot-renamer/
 
-The launchd job re-runs the script on system boot, so a post-update reboot is the natural moment for the check to fire. If you want to trigger the check manually, restart the job:
+If you want to trigger the startup check manually, restart the job:
 
 ```zsh
 launchctl unload ~/Library/LaunchAgents/com.justin.macos-screenshot-renamer.plist
@@ -331,7 +331,33 @@ A healthy startup looks like:
 2026-05-10 06:14:01 Starting screenshot watcher
 2026-05-10 06:14:01 Watching: /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
 2026-05-10 06:14:01 Destination: /Users/justin/Desktop
-2026-05-10 06:14:01 OK: screencapture location = /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+2026-05-10 06:14:01 OK: screencapture target=file, location = /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+```
+
+### "Cmd-Shift-3 opens the screenshot in Preview and saves nothing"
+
+The `target` default in the same domain got set to `preview` (QuickTime's "Save To > QuickTime Player" does this — see the warning below). In that mode macOS writes no file anywhere, so the renamer sees nothing. Restore with:
+
+```zsh
+defaults write com.apple.screencapture target file
+killall SystemUIServer
+```
+
+### ⚠️ Warning: QuickTime silently wipes the screenshot location setting
+
+QuickTime's screen-recording UI (**File > New Screen Recording > Options > Save To**) edits the *same* `com.apple.screencapture location` preference that Cmd-Shift-3 screenshots use — it is a global settings editor disguised as a per-recording option. Verified experimentally (2026-07-11):
+
+- Clicking any "Save To" item writes the preference **immediately** — no recording needed, and clicking an item that already appears selected still writes.
+- "Desktop" and "QuickTime Player" are stored by **deleting** the `location` key, which breaks this renamer.
+- "QuickTime Player" additionally sets `target = preview`, after which Cmd-Shift-3 opens screenshots in Preview and saves no file at all.
+- The menu cannot display a custom path like `raw-screenshots/`, so it misleadingly shows "QuickTime Player" as selected even while the custom location is in effect. Merely *opening* the Options menu and pressing ESC is safe; clicking is not.
+
+So after any QuickTime screen-recording session, assume the settings may be gone. The watcher's periodic self-check (above) will notify you within ~5 minutes; restore with:
+
+```zsh
+defaults write com.apple.screencapture location ~/Utilities/macos-screenshot-renamer/raw-screenshots
+defaults write com.apple.screencapture target file
+killall SystemUIServer
 ```
 
 ## Uninstall

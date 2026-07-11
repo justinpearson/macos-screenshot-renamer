@@ -13,13 +13,14 @@ The system has three parts:
 
 ## Known Failure Mode
 
-macOS updates have been observed to silently reset `com.apple.screencapture location` back to its default. When this happens, screenshots go straight to `~/Desktop` (with the U+202F filenames), `fswatch` sees nothing in `raw-screenshots/`, and the user gets no obvious indication the renamer is broken.
+The `com.apple.screencapture` defaults get silently reset. Two known causes: macOS updates, and QuickTime's screen-recording "Options > Save To" menu, which edits these same preferences the instant a menu item is clicked — no recording needed, clicking an already-selected item still writes, "Desktop" / "QuickTime Player" are stored by DELETING the `location` key, and "QuickTime Player" additionally sets `target = preview` so screenshots open in Preview with no file saved anywhere (verified experimentally 2026-07-11). When this happens, screenshots go straight to `~/Desktop` (with the U+202F filenames) or stop being saved at all, `fswatch` sees nothing in `raw-screenshots/`, and the user gets no obvious indication the renamer is broken.
 
-To detect this, the script runs a startup self-check (`check_screencapture_location()`) that compares the current `defaults` value against `RAW_DIR`. On mismatch it logs a WARNING and posts a macOS notification titled "Screenshot renamer broken". The launchd job restarts the script on system boot, so the post-update reboot is a natural moment for this check to fire.
+To detect this, the script checks that `location` equals `RAW_DIR` and `target` is `file`/unset, at startup (`check_screencapture_settings()`) and every `LOCATION_RECHECK_SECONDS` thereafter in a daemon thread (`monitor_screencapture_settings()`). On mismatch it logs a WARNING and posts a macOS notification titled "Screenshot renamer broken" — once per transition to broken, not on every interval.
 
 To fix the `defaults` reset:
 ```zsh
 defaults write com.apple.screencapture location /Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots
+defaults write com.apple.screencapture target file
 killall SystemUIServer
 ```
 
