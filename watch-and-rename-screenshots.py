@@ -33,11 +33,19 @@ WHY THIS IS COMPLICATED:
    existing files). TCC does allow launchd jobs to stat/rename specific
    ~/Desktop paths; it only blocks listing the directory and reading or
    hard-linking files in it.
+
+8. The `com.apple.screencapture` defaults this whole scheme depends on
+   (`location`: where screenshots are saved; `target`: whether they are saved
+   to disk at all) can be reset while the watcher is running (see
+   check_screencapture_settings's docstring for the known causes), so they
+   are re-checked every LOCATION_RECHECK_SECONDS in a daemon thread, not just
+   at startup.
 """
 
 import subprocess
 import sys
 import re
+import threading
 from datetime import datetime
 from pathlib import Path
 import time
@@ -46,6 +54,7 @@ from typing import Optional, Tuple
 RAW_DIR = Path("/Users/justin/Utilities/macos-screenshot-renamer/raw-screenshots")
 DEST_DIR = Path("/Users/justin/Desktop")
 FSWATCH_PATH = "/opt/homebrew/bin/fswatch"
+LOCATION_RECHECK_SECONDS = 300
 
 # Regex to match final screenshot filename (no leading dots)
 SCREENSHOT_PATTERN = re.compile(r"/Screenshot [^/]+\.png$")
@@ -66,35 +75,105 @@ def notify(message: str, title: str = "Screenshot renamed") -> None:
     ], capture_output=True)
 
 
-def check_screencapture_location() -> None:
-    """Warn loudly if macOS isn't configured to save screenshots into RAW_DIR.
-
-    A macOS update can silently reset `defaults write com.apple.screencapture
-    location`. When that happens, screenshots go straight to ~/Desktop, fswatch
-    sees nothing, and the user gets the old non-breaking-space filenames again
-    with no obvious indication the renamer is broken.
-    """
+def read_screencapture_default(key: str) -> str:
+    """Return a com.apple.screencapture default as a string, or "" if unset."""
     result = subprocess.run(
-        ["defaults", "read", "com.apple.screencapture", "location"],
+        ["defaults", "read", "com.apple.screencapture", key],
         capture_output=True, text=True
     )
-    actual_str = result.stdout.strip() if result.returncode == 0 else ""
+    return result.stdout.strip() if result.returncode == 0 else ""
 
-    expected = RAW_DIR.resolve()
-    actual = Path(actual_str).expanduser().resolve() if actual_str else None
 
-    if actual == expected:
-        log(f"OK: screencapture location = {actual_str}")
-        return
+def screencapture_location_ok() -> bool:
+    """Quietly report whether the screenshot save folder is RAW_DIR."""
+    actual_str = read_screencapture_default("location")
+    if not actual_str:
+        return False
+    return Path(actual_str).expanduser().resolve() == RAW_DIR.resolve()
 
-    seen = actual_str if actual_str else "(unset, defaults to ~/Desktop)"
-    problem = f"Default screenshot location is {seen}, not {RAW_DIR}"
+
+def screencapture_target_ok() -> bool:
+    """Quietly report whether screenshots are saved to disk at all.
+
+    The `target` default selects what happens to a capture: "file" (or
+    unset) writes it into `location`; "preview", "clipboard", "mail", and
+    "messages" write no file anywhere, so the renamer sees nothing.
+    QuickTime's "Save To > QuickTime Player" sets target=preview as a side
+    effect, making Cmd-Shift-3 open Preview instead of saving.
+    """
+    return read_screencapture_default("target") in ("", "file")
+
+
+def screencapture_settings_ok() -> bool:
+    """Quietly report whether screenshots will land in RAW_DIR as files."""
+    return screencapture_location_ok() and screencapture_target_ok()
+
+
+def warn_screencapture_settings_broken() -> None:
+    """Log and notify that screenshots are no longer landing in RAW_DIR."""
+    problems = []
+    fixes = []
+    if not screencapture_location_ok():
+        seen = read_screencapture_default("location") or "(unset, defaults to ~/Desktop)"
+        problems.append(f"screenshot location is {seen}, not {RAW_DIR}")
+        fixes.append(f"defaults write com.apple.screencapture location {RAW_DIR}")
+    if not screencapture_target_ok():
+        seen = read_screencapture_default("target")
+        problems.append(f"screenshot target is '{seen}', so screenshots are not saved to disk")
+        fixes.append("defaults write com.apple.screencapture target file")
+    problem = "; ".join(problems)
     log(f"WARNING: {problem}")
-    log("Screenshots will NOT be renamed. Fix with: defaults write com.apple.screencapture location " + str(RAW_DIR) + " && killall SystemUIServer")
+    log("Screenshots will NOT be renamed. Fix with: " + " && ".join(fixes + ["killall SystemUIServer"]))
     notify(
         f"{problem}. See ~/Utilities/macos-screenshot-renamer/",
         title="Screenshot renamer broken",
     )
+
+
+def check_screencapture_settings() -> bool:
+    """Warn loudly if macOS isn't configured to save screenshots into RAW_DIR.
+
+    The screencapture defaults get reset behind our back, with no visible
+    sign:
+
+    - A macOS update can silently clear `location`.
+    - QuickTime's screen-recording "Options > Save To" menu edits these same
+      defaults the instant a menu item is clicked -- no recording needed, and
+      clicking an item that already appears selected still writes. "Desktop"
+      and "QuickTime Player" are stored by DELETING the `location` key, and
+      "QuickTime Player" additionally sets `target=preview` (screenshots open
+      in Preview, no file saved). The menu can't display a custom path like
+      RAW_DIR, so it misleadingly shows "QuickTime Player" as selected while
+      our value is in effect. (Verified experimentally 2026-07-11.)
+
+    When that happens, screenshots go straight to ~/Desktop or stop being
+    saved at all, fswatch sees nothing, and the user gets no obvious
+    indication the renamer is broken.
+    """
+    if screencapture_settings_ok():
+        log(f"OK: screencapture target=file, location = {RAW_DIR}")
+        return True
+    warn_screencapture_settings_broken()
+    return False
+
+
+def monitor_screencapture_settings() -> None:
+    """Re-check the screencapture settings every few minutes, forever.
+
+    A startup-only check misses resets that happen while the watcher runs
+    (QuickTime's Save To menu -- see check_screencapture_settings), leaving
+    the renamer silently broken until the next reboot. Runs in a daemon
+    thread; warns once per transition to broken, not on every interval.
+    """
+    was_ok = True
+    while True:
+        time.sleep(LOCATION_RECHECK_SECONDS)
+        ok = screencapture_settings_ok()
+        if ok and not was_ok:
+            log("OK: screencapture settings restored")
+        elif not ok and was_ok:
+            warn_screencapture_settings_broken()
+        was_ok = ok
 
 
 def check_fswatch_installed() -> None:
@@ -265,7 +344,8 @@ def main() -> None:
     log(f"Watching: {RAW_DIR}")
     log(f"Destination: {DEST_DIR}")
     check_fswatch_installed()
-    check_screencapture_location()
+    check_screencapture_settings()
+    threading.Thread(target=monitor_screencapture_settings, daemon=True).start()
 
     # Start fswatch with:
     #   -0: null-terminated output (handles filenames with spaces/newlines)

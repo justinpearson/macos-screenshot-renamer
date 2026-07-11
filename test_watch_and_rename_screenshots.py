@@ -151,5 +151,97 @@ class CheckFswatchInstalledTest(unittest.TestCase):
             notify.assert_not_called()
 
 
+class ScreencaptureSettingsCheckTest(unittest.TestCase):
+    def patch_defaults(self, location: str, target: str = "file"):
+        values = {"location": location, "target": target}
+        return mock.patch.object(
+            renamer, "read_screencapture_default", side_effect=values.__getitem__
+        )
+
+    def test_ok_when_location_is_raw_dir(self):
+        with self.patch_defaults(str(renamer.RAW_DIR)):
+            self.assertTrue(renamer.screencapture_settings_ok())
+
+    def test_not_ok_when_location_unset(self):
+        # QuickTime's "Save To > Desktop" and "Save To > QuickTime Player"
+        # both DELETE the key rather than writing a path.
+        with self.patch_defaults(""):
+            self.assertFalse(renamer.screencapture_settings_ok())
+
+    def test_not_ok_when_location_is_other_path(self):
+        with self.patch_defaults("~/Documents/"):
+            self.assertFalse(renamer.screencapture_settings_ok())
+
+    def test_ok_when_target_unset(self):
+        # Absent target means the default behavior: save to a file.
+        with self.patch_defaults(str(renamer.RAW_DIR), target=""):
+            self.assertTrue(renamer.screencapture_settings_ok())
+
+    def test_not_ok_when_target_is_preview(self):
+        # QuickTime's "Save To > QuickTime Player" sets target=preview:
+        # Cmd-Shift-3 then opens Preview and writes no file anywhere.
+        with self.patch_defaults(str(renamer.RAW_DIR), target="preview"):
+            self.assertFalse(renamer.screencapture_settings_ok())
+
+    def test_not_ok_when_target_is_clipboard(self):
+        with self.patch_defaults(str(renamer.RAW_DIR), target="clipboard"):
+            self.assertFalse(renamer.screencapture_settings_ok())
+
+    def test_check_warns_and_notifies_when_location_broken(self):
+        with self.patch_defaults(""), \
+             mock.patch.object(renamer, "notify") as notify:
+            self.assertFalse(renamer.check_screencapture_settings())
+            notify.assert_called_once()
+
+    def test_check_names_target_when_target_broken(self):
+        with self.patch_defaults(str(renamer.RAW_DIR), target="preview"), \
+             mock.patch.object(renamer, "notify") as notify:
+            self.assertFalse(renamer.check_screencapture_settings())
+            notify.assert_called_once()
+            self.assertIn("target", notify.call_args.args[0])
+
+    def test_check_is_quiet_when_ok(self):
+        with self.patch_defaults(str(renamer.RAW_DIR)), \
+             mock.patch.object(renamer, "notify") as notify:
+            self.assertTrue(renamer.check_screencapture_settings())
+            notify.assert_not_called()
+
+
+class _StopMonitor(Exception):
+    """Raised from a mocked time.sleep to end the monitor's infinite loop."""
+
+
+class MonitorScreencaptureSettingsTest(unittest.TestCase):
+    def run_monitor(self, ok_values):
+        """Run monitor_screencapture_settings for len(ok_values) checks.
+
+        Returns the mock for warn_screencapture_settings_broken.
+        """
+        sleeps = [None] * len(ok_values) + [_StopMonitor()]
+        with mock.patch.object(renamer.time, "sleep", side_effect=sleeps), \
+             mock.patch.object(
+                 renamer, "screencapture_settings_ok", side_effect=list(ok_values)
+             ), \
+             mock.patch.object(
+                 renamer, "warn_screencapture_settings_broken"
+             ) as warn:
+            with self.assertRaises(_StopMonitor):
+                renamer.monitor_screencapture_settings()
+        return warn
+
+    def test_never_warns_while_ok(self):
+        warn = self.run_monitor([True, True, True])
+        warn.assert_not_called()
+
+    def test_warns_once_when_broken_and_stays_broken(self):
+        # One notification per breakage, not one every interval.
+        warn = self.run_monitor([True, False, False, False])
+        warn.assert_called_once()
+
+    def test_warns_again_after_recovery_and_rebreak(self):
+        warn = self.run_monitor([False, True, False])
+        self.assertEqual(warn.call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
